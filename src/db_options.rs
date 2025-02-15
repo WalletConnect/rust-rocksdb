@@ -16,7 +16,7 @@ use std::ffi::CStr;
 use std::path::Path;
 use std::ptr::{null_mut, NonNull};
 use std::slice;
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 
 use libc::{self, c_char, c_double, c_int, c_uchar, c_uint, c_void, size_t};
 
@@ -208,11 +208,32 @@ impl Cache {
         unsafe { ffi::rocksdb_cache_get_pinned_usage(self.0.inner.as_ptr()) }
     }
 
+    pub fn get_occupancy_count(&self) -> usize {
+        unsafe { ffi::rocksdb_cache_get_occupancy_count(self.0.inner.as_ptr()) }
+    }
+
+    pub fn get_table_address_count(&self) -> usize {
+        unsafe { ffi::rocksdb_cache_get_table_address_count(self.0.inner.as_ptr()) }
+    }
+
     /// Sets cache capacity in bytes.
     pub fn set_capacity(&mut self, capacity: size_t) {
         unsafe {
             ffi::rocksdb_cache_set_capacity(self.0.inner.as_ptr(), capacity);
         }
+    }
+
+    pub fn downgrade(&self) -> WeakCache {
+        WeakCache(Arc::downgrade(&self.0))
+    }
+}
+
+#[derive(Clone)]
+pub struct WeakCache(Weak<CacheWrapper>);
+
+impl WeakCache {
+    pub fn upgrade(&self) -> Option<Cache> {
+        self.0.upgrade().map(Cache)
     }
 }
 
